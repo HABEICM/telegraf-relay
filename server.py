@@ -201,7 +201,9 @@ async def main():
     async with websockets.serve(
         lambda ws: handler(ws, ws.request.path if hasattr(ws, 'request') else '/'),
         "0.0.0.0",
-        port
+        port,
+        ping_interval=30,
+        ping_timeout=10
     ):
         await asyncio.Future()  # Run forever
 
