@@ -111,6 +111,17 @@ async def handle_typing(websocket, data):
             'from_username': users.get(sender_id, {}).get('username', 'Unknown')
         }))
 
+async def handle_messages_read(websocket, data):
+    """Notify sender that messages were read"""
+    recipient_id = data.get('to')
+    sender_id = data.get('from')
+
+    if recipient_id in clients:
+        await clients[recipient_id].send(json.dumps({
+            'type': 'messages_read',
+            'from': sender_id
+        }))
+
 async def get_public_key(websocket, data):
     """Send user's public key for encryption"""
     user_id = data.get('user_id')
@@ -173,6 +184,9 @@ async def handler(websocket, path):
 
                 elif msg_type == 'typing':
                     await handle_typing(websocket, data)
+
+                elif msg_type == 'messages_read':
+                    await handle_messages_read(websocket, data)
 
                 elif msg_type == 'get_public_key':
                     await get_public_key(websocket, data)
