@@ -11,6 +11,7 @@ import logging
 from datetime import datetime
 from collections import defaultdict
 import os
+import http
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -168,12 +169,17 @@ async def handle_disconnect(user_id):
 async def handler(websocket, path):
     """Main WebSocket handler"""
     user_id = None
+    remote_addr = websocket.remote_address if hasattr(websocket, 'remote_address') else 'unknown'
+
+    logger.info(f"New connection from {remote_addr}")
 
     try:
         async for message in websocket:
             try:
                 data = json.loads(message)
                 msg_type = data.get('type')
+
+                logger.debug(f"Received message type: {msg_type} from {user_id or remote_addr}")
 
                 if msg_type == 'register':
                     user_id = data.get('user_id')
@@ -193,33 +199,59 @@ async def handler(websocket, path):
 
                 elif msg_type == 'ping':
                     await websocket.send(json.dumps({'type': 'pong'}))
+                    logger.debug(f"Pong sent to {user_id or remote_addr}")
 
-            except json.JSONDecodeError:
-                logger.error("Invalid JSON received")
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON received from {user_id or remote_addr}: {e}")
             except Exception as e:
-                logger.error(f"Error handling message: {e}")
+                logger.error(f"Error handling message from {user_id or remote_addr}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
 
-    except websockets.exceptions.ConnectionClosed:
-        pass
+    except websockets.exceptions.ConnectionClosed as e:
+        logger.info(f"Connection closed normally for {user_id or remote_addr}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in handler for {user_id or remote_addr}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
     finally:
         if user_id:
             await handle_disconnect(user_id)
+            logger.info(f"User {user_id} disconnected and cleaned up")
+
+async def health_check(path, request_headers):
+    """Health check for Railway and other platforms"""
+    if path == "/health" or path == "/":
+        return http.HTTPStatus.OK, [], b"OK\n"
 
 async def main():
     """Start relay server"""
     port = int(os.environ.get('PORT', 8765))
 
     logger.info(f"Starting Telegraf Relay Server on port {port}")
+    logger.info(f"Server will be available at: 0.0.0.0:{port}")
+    logger.info(f"Health check endpoint: /health")
 
     # Updated for websockets 16.0+ - handler is now a connection handler
     async with websockets.serve(
         lambda ws: handler(ws, ws.request.path if hasattr(ws, 'request') else '/'),
         "0.0.0.0",
         port,
-        ping_interval=30,
-        ping_timeout=10
+        ping_interval=20,
+        ping_timeout=10,
+        process_request=health_check,
+        max_size=10 * 1024 * 1024,  # 10MB max message size
+        compression=None  # Disable compression for better compatibility
     ):
+        logger.info("Server started successfully and ready to accept connections")
         await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Server stopped by user")
+    except Exception as e:
+        logger.error(f"Server crashed: {e}")
+        import traceback
+        traceback.print_exc()
