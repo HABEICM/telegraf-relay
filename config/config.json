@@ -1,0 +1,42 @@
+{
+    "relay_server": "wss://joyful-flexibility-production.up.railway.app",
+    "fallback_servers": [
+        "ws://localhost:8765"
+    ],
+    "app_name": "Telegraf Premium",
+    "version": "2.0.0",
+    "data_dir": "../data",
+    "logs_dir": "../logs",
+    "assets_dir": "../assets",
+    "encryption": {
+        "algorithm": "AES-256-CBC",
+        "key_exchange": "RSA-2048"
+    },
+    "network": {
+        "timeout": 30,
+        "reconnect_interval": 5,
+        "max_reconnect_attempts": 10,
+        "ping_interval": 20
+    },
+    "ui": {
+        "theme": "glassmorphism",
+        "language": "ru",
+        "animations": true,
+        "blur_radius": 20,
+        "opacity": 0.7
+    },
+    "features": {
+        "voice_messages": false,
+        "file_sharing": false,
+        "group_chats": false,
+        "stickers": false
+    },
+    "auto_connect": true,
+    "show_splash": true,
+    "window": {
+        "width": 1400,
+        "height": 900,
+        "frameless": true,
+        "transparent": true
+    }
+}
